@@ -26,10 +26,22 @@ final class FilamentEventsPlugin implements Plugin
     {
         $panel
             ->resources($this->getResources())
+            ->pages($this->getPages())
             ->widgets($this->getWidgets());
     }
 
     public function boot(Panel $panel): void {}
+
+    private function getPages(): array
+    {
+        return [
+            Pages\CheckInConsole::class,
+            Pages\NotificationCenter::class,
+            Pages\ApprovalQueue::class,
+            Pages\EventPublicPreview::class,
+            Pages\SeatMapManager::class,
+        ];
+    }
 
     private function getResources(): array
     {
@@ -43,6 +55,7 @@ final class FilamentEventsPlugin implements Plugin
         if ($e['registration'] ?? true) $r[] = Resources\EventRegistrationResource::class;
         if ($e['ticket_type'] ?? true) $r[] = Resources\EventTicketTypeResource::class;
         if ($e['attendance'] ?? true) $r[] = Resources\EventAttendanceResource::class;
+        if ($e['change_log'] ?? true) $r[] = Resources\EventChangeLogResource::class;
 
         return $r;
     }

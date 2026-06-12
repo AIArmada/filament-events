@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace AIArmada\FilamentEvents\Resources;
 
+use AIArmada\CommerceSupport\Support\Filament\OwnerUiScope;
 use AIArmada\Events\Models\EventAttendance;
+use AIArmada\FilamentEvents\Actions\Exporter\EventAttendanceExporter;
 use BackedEnum;
+use Filament\Actions\ExportAction;
 use Filament\Actions\ViewAction;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Resources\Resource;
@@ -13,6 +16,7 @@ use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 final class EventAttendanceResource extends Resource
 {
@@ -25,6 +29,16 @@ final class EventAttendanceResource extends Resource
     public static function getNavigationGroup(): ?string
     {
         return config('filament-events.navigation.group');
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        /** @var Builder<EventAttendance> $query */
+        $query = parent::getEloquentQuery();
+
+        return $query
+            ->whereHas('event', fn (Builder $eventQuery): Builder => OwnerUiScope::apply($eventQuery, includeGlobal: false))
+            ->with(['event', 'occurrence', 'session', 'registration']);
     }
 
     public static function table(Table $table): Table
@@ -48,6 +62,11 @@ final class EventAttendanceResource extends Resource
             ->filters([
                 Tables\Filters\SelectFilter::make('attendance_type'),
                 Tables\Filters\SelectFilter::make('check_in_source'),
+            ])
+            ->headerActions([
+                ExportAction::make()
+                    ->exporter(EventAttendanceExporter::class)
+                    ->label('Export Attendance'),
             ])
             ->actions([
                 ViewAction::make(),

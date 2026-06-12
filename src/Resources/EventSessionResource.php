@@ -4,8 +4,13 @@ declare(strict_types=1);
 
 namespace AIArmada\FilamentEvents\Resources;
 
+use AIArmada\CommerceSupport\Support\Filament\OwnerUiScope;
 use AIArmada\Events\Models\EventSession;
+use AIArmada\FilamentEvents\Actions\Exporter\EventSessionExporter;
+use AIArmada\FilamentEvents\Actions\Importer\EventSessionImporter;
 use BackedEnum;
+use Filament\Actions\ExportAction;
+use Filament\Actions\ImportAction;
 use Filament\Actions\ViewAction;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Resources\Resource;
@@ -13,6 +18,7 @@ use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 final class EventSessionResource extends Resource
 {
@@ -25,6 +31,16 @@ final class EventSessionResource extends Resource
     public static function getNavigationGroup(): ?string
     {
         return config('filament-events.navigation.group');
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        /** @var Builder<EventSession> $query */
+        $query = parent::getEloquentQuery();
+
+        return $query
+            ->whereHas('event', fn (Builder $eventQuery): Builder => OwnerUiScope::apply($eventQuery, includeGlobal: false))
+            ->with(['event', 'occurrence']);
     }
 
     public static function table(Table $table): Table
@@ -69,6 +85,14 @@ final class EventSessionResource extends Resource
                         'archived' => 'Archived',
                     ]),
             ])
+            ->headerActions([
+                ImportAction::make()
+                    ->importer(EventSessionImporter::class)
+                    ->label('Import Sessions'),
+                ExportAction::make()
+                    ->exporter(EventSessionExporter::class)
+                    ->label('Export Sessions'),
+            ])
             ->actions([
                 ViewAction::make(),
             ]);
@@ -103,6 +127,16 @@ final class EventSessionResource extends Resource
         return [
             'index' => EventSessionResource\Pages\ListEventSessions::route('/'),
             'view' => EventSessionResource\Pages\ViewEventSession::route('/{record}'),
+        ];
+    }
+
+    public static function getRelations(): array
+    {
+        return [
+            EventSessionResource\RelationManagers\SessionInvolvementsRelationManager::class,
+            EventSessionResource\RelationManagers\SessionLocationsRelationManager::class,
+            EventSessionResource\RelationManagers\SessionAttendancesRelationManager::class,
+            EventSessionResource\RelationManagers\SessionMaterialsRelationManager::class,
         ];
     }
 }

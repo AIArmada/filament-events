@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace AIArmada\FilamentEvents\Resources;
 
+use AIArmada\CommerceSupport\Support\Filament\OwnerUiScope;
 use AIArmada\Events\Models\EventOccurrence;
+use AIArmada\FilamentEvents\Actions\Exporter\EventOccurrenceExporter;
 use BackedEnum;
+use Filament\Actions\ExportAction;
 use Filament\Actions\ViewAction;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Resources\Resource;
@@ -13,6 +16,7 @@ use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 final class EventOccurrenceResource extends Resource
 {
@@ -25,6 +29,16 @@ final class EventOccurrenceResource extends Resource
     public static function getNavigationGroup(): ?string
     {
         return config('filament-events.navigation.group');
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        /** @var Builder<EventOccurrence> $query */
+        $query = parent::getEloquentQuery();
+
+        return $query
+            ->whereHas('event', fn (Builder $eventQuery): Builder => OwnerUiScope::apply($eventQuery, includeGlobal: false))
+            ->with('event');
     }
 
     public static function table(Table $table): Table
@@ -80,7 +94,62 @@ final class EventOccurrenceResource extends Resource
                     ]),
                 Tables\Filters\SelectFilter::make('event_id')
                     ->label('Event')
-                    ->relationship('event', 'title'),
+                    ->relationship(
+                        'event',
+                        'title',
+                        modifyQueryUsing: fn (Builder $query): Builder => OwnerUiScope::apply($query, includeGlobal: false),
+                    ),
+            ])
+            ->headerActions([
+                ExportAction::make()
+                    ->exporter(EventOccurrenceExporter::class)
+                    ->label('Export Occurrences'),
+                \Filament\Actions\Action::make('delay')
+                    ->label('Delay')
+                    ->icon('heroicon-o-clock')
+                    ->color('warning')
+                    ->form([
+                        \Filament\Forms\Components\Textarea::make('reason'),
+                        \Filament\Forms\Components\DateTimePicker::make('expected_starts_at')->label('Expected New Start'),
+                    ])
+                    ->action(function (array $data, \AIArmada\Events\Models\EventOccurrence $record) {
+                        app(\AIArmada\Events\Contracts\EventLifecycleWorkflow::class)->delay($record, $data['reason'] ?? null, $data['expected_starts_at'] ?? null);
+                    })
+                    ->visible(fn (\AIArmada\Events\Models\EventOccurrence $record) => $record->status === 'published' || $record->status === 'scheduled')
+                    ->requiresConfirmation(),
+                \Filament\Actions\Action::make('postpone')
+                    ->label('Postpone')
+                    ->icon('heroicon-o-calendar-x')
+                    ->color('warning')
+                    ->form([
+                        \Filament\Forms\Components\Textarea::make('reason')->required(),
+                    ])
+                    ->action(function (array $data, \AIArmada\Events\Models\EventOccurrence $record) {
+                        app(\AIArmada\Events\Contracts\EventLifecycleWorkflow::class)->postpone($record, $data['reason']);
+                    })
+                    ->visible(fn (\AIArmada\Events\Models\EventOccurrence $record) => $record->status === 'published' || $record->status === 'scheduled')
+                    ->requiresConfirmation(),
+                \Filament\Actions\Action::make('cancel')
+                    ->label('Cancel Occurrence')
+                    ->icon('heroicon-o-x-circle')
+                    ->color('danger')
+                    ->form([
+                        \Filament\Forms\Components\Textarea::make('reason')->required(),
+                    ])
+                    ->action(function (array $data, \AIArmada\Events\Models\EventOccurrence $record) {
+                        app(\AIArmada\Events\Contracts\EventLifecycleWorkflow::class)->cancel($record, $data['reason']);
+                    })
+                    ->visible(fn (\AIArmada\Events\Models\EventOccurrence $record) => !in_array($record->status, ['cancelled', 'completed', 'archived']))
+                    ->requiresConfirmation(),
+                \Filament\Actions\Action::make('complete')
+                    ->label('Complete')
+                    ->icon('heroicon-o-check')
+                    ->color('success')
+                    ->action(function (\AIArmada\Events\Models\EventOccurrence $record) {
+                        app(\AIArmada\Events\Contracts\EventLifecycleWorkflow::class)->complete($record);
+                    })
+                    ->visible(fn (\AIArmada\Events\Models\EventOccurrence $record) => $record->status === 'published')
+                    ->requiresConfirmation(),
             ])
             ->actions([
                 ViewAction::make(),
@@ -125,6 +194,18 @@ final class EventOccurrenceResource extends Resource
         return [
             'index' => EventOccurrenceResource\Pages\ListEventOccurrences::route('/'),
             'view' => EventOccurrenceResource\Pages\ViewEventOccurrence::route('/{record}'),
+        ];
+    }
+
+    public static function getRelations(): array
+    {
+        return [
+            EventOccurrenceResource\RelationManagers\OccurrenceSessionsRelationManager::class,
+            EventOccurrenceResource\RelationManagers\OccurrenceLocationsRelationManager::class,
+            EventOccurrenceResource\RelationManagers\OccurrenceInvolvementsRelationManager::class,
+            EventOccurrenceResource\RelationManagers\OccurrenceRegistrationsRelationManager::class,
+            EventOccurrenceResource\RelationManagers\OccurrenceTicketTypesRelationManager::class,
+            EventOccurrenceResource\RelationManagers\OccurrenceAttendancesRelationManager::class,
         ];
     }
 }

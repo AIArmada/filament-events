@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace AIArmada\FilamentEvents\Resources;
 
+use AIArmada\CommerceSupport\Support\Filament\OwnerUiScope;
 use AIArmada\Events\Models\Event;
+use AIArmada\FilamentEvents\Actions\Exporter\EventExporter;
 use BackedEnum;
+use Filament\Actions\ExportAction;
 use Filament\Actions\ViewAction;
 use Filament\Infolists\Components\CodeEntry;
 use Filament\Infolists\Components\TextEntry;
@@ -14,6 +17,7 @@ use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 final class EventResource extends Resource
 {
@@ -26,6 +30,18 @@ final class EventResource extends Resource
     public static function getNavigationGroup(): ?string
     {
         return config('filament-events.navigation.group');
+    }
+
+    /**
+     * @return Builder<Event>
+     */
+    public static function getEloquentQuery(): Builder
+    {
+        /** @var Builder<Event> $query */
+        $query = parent::getEloquentQuery();
+
+        return OwnerUiScope::apply($query, includeGlobal: false)
+            ->withCount('occurrences');
     }
 
     public static function table(Table $table): Table
@@ -99,6 +115,41 @@ final class EventResource extends Resource
                         'hybrid' => 'Hybrid',
                     ]),
             ])
+            ->headerActions([
+                ExportAction::make()
+                    ->exporter(EventExporter::class)
+                    ->label('Export Events'),
+                \Filament\Actions\Action::make('publish')
+                    ->label('Publish')
+                    ->icon('heroicon-o-check-circle')
+                    ->color('success')
+                    ->action(function (\AIArmada\Events\Models\Event $record) {
+                        app(\AIArmada\Events\Contracts\EventLifecycleWorkflow::class)->publish($record);
+                    })
+                    ->visible(fn (\AIArmada\Events\Models\Event $record) => $record->status === \AIArmada\Events\Models\Event::DRAFT || $record->status === \AIArmada\Events\Models\Event::PENDING_REVIEW)
+                    ->requiresConfirmation(),
+                \Filament\Actions\Action::make('archive')
+                    ->label('Archive')
+                    ->icon('heroicon-o-archive-box')
+                    ->color('warning')
+                    ->action(function (\AIArmada\Events\Models\Event $record) {
+                        app(\AIArmada\Events\Contracts\EventLifecycleWorkflow::class)->archive($record);
+                    })
+                    ->visible(fn (\AIArmada\Events\Models\Event $record) => $record->status === \AIArmada\Events\Models\Event::PUBLISHED)
+                    ->requiresConfirmation(),
+                \Filament\Actions\Action::make('cancel')
+                    ->label('Cancel')
+                    ->icon('heroicon-o-x-circle')
+                    ->color('danger')
+                    ->form([
+                        \Filament\Forms\Components\Textarea::make('reason')->required(),
+                    ])
+                    ->action(function (array $data, \AIArmada\Events\Models\Event $record) {
+                        app(\AIArmada\Events\Contracts\EventLifecycleWorkflow::class)->cancel($record, $data['reason']);
+                    })
+                    ->visible(fn (\AIArmada\Events\Models\Event $record) => !in_array($record->status, ['cancelled', 'completed', 'archived']))
+                    ->requiresConfirmation(),
+            ])
             ->actions([
                 ViewAction::make(),
             ]);
@@ -137,6 +188,19 @@ final class EventResource extends Resource
                             ->visible(fn (?array $state): bool => ! empty($state)),
                     ]),
             ]);
+    }
+
+    public static function getRelations(): array
+    {
+        return [
+            EventResource\RelationManagers\OccurrencesRelationManager::class,
+            EventResource\RelationManagers\SessionsRelationManager::class,
+            EventResource\RelationManagers\LocationsRelationManager::class,
+            EventResource\RelationManagers\InvolvementsRelationManager::class,
+            EventResource\RelationManagers\RegistrationsRelationManager::class,
+            EventResource\RelationManagers\TicketTypesRelationManager::class,
+            EventResource\RelationManagers\AttendancesRelationManager::class,
+        ];
     }
 
     public static function getPages(): array

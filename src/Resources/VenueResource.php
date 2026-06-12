@@ -5,7 +5,11 @@ declare(strict_types=1);
 namespace AIArmada\FilamentEvents\Resources;
 
 use AIArmada\Events\Models\Venue;
+use AIArmada\FilamentEvents\Actions\Exporter\VenueExporter;
+use AIArmada\FilamentEvents\Actions\Importer\VenueImporter;
 use BackedEnum;
+use Filament\Actions\ExportAction;
+use Filament\Actions\ImportAction;
 use Filament\Actions\ViewAction;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Resources\Resource;
@@ -13,7 +17,6 @@ use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
-
 final class VenueResource extends Resource
 {
     protected static ?string $model = Venue::class;
@@ -63,6 +66,14 @@ final class VenueResource extends Resource
                         'closed' => 'Closed',
                     ]),
                 Tables\Filters\SelectFilter::make('country'),
+            ])
+            ->headerActions([
+                ImportAction::make()
+                    ->importer(VenueImporter::class)
+                    ->label('Import Venues'),
+                ExportAction::make()
+                    ->exporter(VenueExporter::class)
+                    ->label('Export Venues'),
             ])
             ->actions([
                 ViewAction::make(),

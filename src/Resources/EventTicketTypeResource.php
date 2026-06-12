@@ -4,8 +4,13 @@ declare(strict_types=1);
 
 namespace AIArmada\FilamentEvents\Resources;
 
+use AIArmada\CommerceSupport\Support\Filament\OwnerUiScope;
 use AIArmada\Events\Models\EventTicketType;
+use AIArmada\FilamentEvents\Actions\Exporter\EventTicketTypeExporter;
+use AIArmada\FilamentEvents\Actions\Importer\EventTicketTypeImporter;
 use BackedEnum;
+use Filament\Actions\ExportAction;
+use Filament\Actions\ImportAction;
 use Filament\Actions\ViewAction;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Resources\Resource;
@@ -13,6 +18,7 @@ use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 final class EventTicketTypeResource extends Resource
 {
@@ -25,6 +31,16 @@ final class EventTicketTypeResource extends Resource
     public static function getNavigationGroup(): ?string
     {
         return config('filament-events.navigation.group');
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        /** @var Builder<EventTicketType> $query */
+        $query = parent::getEloquentQuery();
+
+        return $query
+            ->whereHas('event', fn (Builder $eventQuery): Builder => OwnerUiScope::apply($eventQuery, includeGlobal: false))
+            ->with(['event', 'occurrence', 'session']);
     }
 
     public static function table(Table $table): Table
@@ -77,6 +93,14 @@ final class EventTicketTypeResource extends Resource
                         'sold_out' => 'Sold Out',
                         'paused' => 'Paused',
                     ]),
+            ])
+            ->headerActions([
+                ImportAction::make()
+                    ->importer(EventTicketTypeImporter::class)
+                    ->label('Import Ticket Types'),
+                ExportAction::make()
+                    ->exporter(EventTicketTypeExporter::class)
+                    ->label('Export Ticket Types'),
             ])
             ->actions([
                 ViewAction::make(),
