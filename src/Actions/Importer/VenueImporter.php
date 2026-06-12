@@ -5,8 +5,9 @@ declare(strict_types=1);
 namespace AIArmada\FilamentEvents\Actions\Importer;
 
 use AIArmada\Events\Models\Venue;
-use Filament\Actions\Imports\Importer;
 use Filament\Actions\Imports\ImportColumn;
+use Filament\Actions\Imports\Importer;
+use Filament\Actions\Imports\Models\Import;
 
 final class VenueImporter extends Importer
 {
@@ -43,6 +44,17 @@ final class VenueImporter extends Importer
 
     public function resolveRecord(): ?Venue
     {
-        return new Venue();
+        return new Venue;
+    }
+
+    public static function getCompletedNotificationBody(Import $import): string
+    {
+        $body = 'Your venue import has completed and ' . number_format($import->successful_rows) . ' ' . str('row')->plural($import->successful_rows) . ' imported.';
+
+        if ($failedRowsCount = $import->getFailedRowsCount()) {
+            $body .= ' ' . number_format($failedRowsCount) . ' ' . str('row')->plural($failedRowsCount) . ' failed to import.';
+        }
+
+        return $body;
     }
 }
