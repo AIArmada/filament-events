@@ -2,20 +2,18 @@
 
 declare(strict_types=1);
 
-namespace AIArmada\FilamentEvents\Resources\EventResource\RelationManagers;
+namespace AIArmada\FilamentEvents\Resources\EventSessionResource\RelationManagers;
 
 use Filament\Actions\ViewAction;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
 use Filament\Tables\Table;
 
-final class RegistrationsRelationManager extends RelationManager
+final class SessionRegistrationsRelationManager extends RelationManager
 {
     protected static string $relationship = 'registrations';
 
     protected static ?string $title = 'Registrations';
-
-    protected static ?string $recordTitleAttribute = 'registration_no';
 
     public function table(Table $table): Table
     {
@@ -48,8 +46,6 @@ final class RegistrationsRelationManager extends RelationManager
                     ]),
             ])
             ->headerActions([])
-            ->actions([
-                ViewAction::make(),
-            ]);
+            ->actions([ViewAction::make()]);
     }
 }

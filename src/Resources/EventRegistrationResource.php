@@ -20,6 +20,7 @@ use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use UnitEnum;
 
 final class EventRegistrationResource extends Resource
 {
@@ -29,7 +30,7 @@ final class EventRegistrationResource extends Resource
 
     protected static ?int $navigationSort = 10;
 
-    public static function getNavigationGroup(): ?string
+    public static function getNavigationGroup(): string | UnitEnum | null
     {
         return config('filament-events.navigation.group');
     }
@@ -57,8 +58,9 @@ final class EventRegistrationResource extends Resource
                     ->state(function (EventRegistration $record): string {
                         $registrant = $record->registrant;
                         if ($registrant instanceof Customer) {
-                            return trim(($registrant->first_name ?? '') . ' ' . ($registrant->last_name ?? ''));
+                            return mb_trim(($registrant->first_name ?? '') . ' ' . ($registrant->last_name ?? ''));
                         }
+
                         return $record->participants->first()?->name ?? '';
                     })
                     ->searchable(query: fn (Builder $query, string $search): Builder => $query
@@ -74,6 +76,7 @@ final class EventRegistrationResource extends Resource
                         if ($registrant instanceof Customer && $registrant->email) {
                             return $registrant->email;
                         }
+
                         return $record->participants->first()?->metadata['contact']['email'] ?? null;
                     })
                     ->copyable()
@@ -87,6 +90,7 @@ final class EventRegistrationResource extends Resource
                         if ($registrant instanceof Customer && $registrant->phone) {
                             return $registrant->phone;
                         }
+
                         return $record->participants->first()?->metadata['contact']['phone'] ?? null;
                     })
                     ->copyable(),
@@ -94,6 +98,7 @@ final class EventRegistrationResource extends Resource
                     ->label('Company')
                     ->state(function (EventRegistration $record): ?string {
                         $registrant = $record->registrant;
+
                         return $registrant instanceof Customer ? $registrant->company : null;
                     }),
                 Tables\Columns\TextColumn::make('event.title')
@@ -102,9 +107,9 @@ final class EventRegistrationResource extends Resource
                     ->badge(),
                 Tables\Columns\TextColumn::make('status')
                     ->badge()
-                    ->color(fn (string $state): string => match ($state) {
-                        'pending', 'waitlisted' => 'warning',
-                        'approved', 'completed' => 'success',
+                    ->color(fn (mixed $state): string => match ((string) $state) {
+                        'pending', 'waitlisted', 'interested' => 'warning',
+                        'approved', 'confirmed', 'completed' => 'success',
                         'cancelled', 'rejected', 'expired' => 'danger',
                         default => 'gray',
                     }),
@@ -120,11 +125,12 @@ final class EventRegistrationResource extends Resource
                 Tables\Filters\SelectFilter::make('status')
                     ->options([
                         'pending' => 'Pending',
-                        'approved' => 'Approved',
+                        'interested' => 'Interested',
+                        'confirmed' => 'Confirmed',
+                        'waitlisted' => 'Waitlisted',
                         'completed' => 'Completed',
                         'cancelled' => 'Cancelled',
                         'rejected' => 'Rejected',
-                        'waitlisted' => 'Waitlisted',
                         'expired' => 'Expired',
                     ]),
                 Tables\Filters\SelectFilter::make('registration_type'),
