@@ -12,7 +12,7 @@ title: Overview
 - Custom pages: check-in console, approval queue, and public event preview
 - Owner-scoped resource queries using `OwnerUiScope`
 - Lifecycle workflow actions (publish, cancel, postpone, delay, archive)
-- Relation managers on the event detail page (occurrences, sessions, locations, involvements, registrations, attendances)
+- Relation managers on the event detail page (occurrences, sessions, locations, involvements, registrations, attendances, classifications)
 
 ## What this package does not own
 
@@ -55,7 +55,7 @@ Use this package for:
 | `EventTemplateResource` | `EventTemplate` | Reusable event templates |
 | `EventTaxonomyResource` / `EventTermResource` | `EventTaxonomy` / `EventTerm` | Classification taxonomies and terms |
 
-Bulk import/export is supported via `Actions\Importer\*` (registrations, sessions) and `Actions\Exporter\*` (events, occurrences, sessions, registrations, attendances, venues).
+Bulk import/export is supported via `Actions\Importer\*` (registrations, sessions, venues) and `Actions\Exporter\*` (events, occurrences, sessions, registrations, attendances, venues).
 
 ## Custom Pages
 
@@ -81,6 +81,6 @@ Bulk import/export is supported via `Actions\Importer\*` (registrations, session
 
 - PHP 8.4+
 - Laravel 13+
-- Filament 5+
+- Filament 5.8+
 - `aiarmada/events`
 - `aiarmada/commerce-support`
