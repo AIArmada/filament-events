@@ -8,17 +8,14 @@ title: Usage
 
 `EventResource` manages event definitions with lifecycle actions on the list page, and Create/Edit forms for event configuration.
 
-**Table columns:** title (searchable), status (badge, color-coded), visibility (badge), delivery_mode (badge), occurrences_count, published_at, last_state_change_at, updated_at.
+**Table columns:** title (searchable), status (badge, color-coded), visibility (badge), delivery_mode (badge), occurrences_count, published_at, updated_at.
 
 **Filters:** status, visibility, delivery_mode.
 
-**Row actions:**
-- **Publish** — promotes draft/pending events to published (calls `EventLifecycleWorkflow::publish()`)
-- **Archive** — archives approved events
+**Lifecycle actions (table header):**
+- **Publish** — promotes draft events to published (calls `EventLifecycleWorkflow::publish()`)
+- **Archive** — archives published events
 - **Cancel** — cancels an event with a reason
-- **Clone** — duplicates the event without its occurrences and redirects to the new edit page
-
-The table header carries a single **Export Events** action using the built-in Filament exporter.
 
 **Create/Edit form sections:**
 - **Pricing & Registration** — `pricing_mode` (select: paid/free/mixed), `registration_mode` (select: required/optional/none), `issue_passes_for_free` (tri-state select)
@@ -26,7 +23,7 @@ The table header carries a single **Export Events** action using the built-in Fi
 
 **Infolist sections:** Identity, Lifecycle, Ownership, Metadata.
 
-**Relation managers (on View page):** Occurrences, Sessions, Locations, Involvements, Registrations, Attendances, Classifications. All read-only.
+**Relation managers (on View page):** Occurrences, Sessions, Locations, Involvements, Registrations, Attendances. All read-only.
 
 ### Occurrences
 
@@ -92,7 +89,7 @@ The Check-In Console page (`/events/check-in`) provides:
 
 - **Search by pass number or registration number** — via header action modal
 - **Pass table** — shows pass_no, registration_no, registrant type, status, issued_at
-- **Check In action** — delegates to `EventCheckInService::checkIn()`, visible only for passes where `Pass::isValid()` is true
+- **Check In action** — delegates to `EventCheckInService::checkInWithResult()` (visible for issued/active passes)
 - **Walk-In Check-In** — header action with event select + attendee name/email
 
 ```php
@@ -111,18 +108,25 @@ app(EventCheckInService::class)->checkIn([
 
 The Approval Queue page (`/events/approvals`) processes event submissions:
 
-- **Table:** approvable_type (badge), approvable_id, status (badge), requested_by, assigned_to, created_at, approved_at, rejected_at
+- **Table:** approvable_type (badge), approvable_id, status (badge), requested_by_type, assigned_to_type, created_at, approved_at, rejected_at
 - **Row actions:** Approve (optional notes), Reject (required reason), Assign to Me
 
 ## Event Public Preview
 
-The Event Public Preview page shows an event as the public would see it. Accessed via a link from the View Event page. Displays:
+The Event Public Preview page shows an event as the public would see it. Accessed via a link from the View Event page, at `events/public-preview/{eventId}`. Mounting without an id, with a malformed or unknown id, or with a cross-owner id aborts with 404 (missing, malformed, and cross-owner ids are indistinguishable, so the URL never leaks event existence). Displays:
 
 - Event details (title, summary, description, status, delivery_mode)
 - Occurrences
 - Speakers and organizers
 - Pinned updates and notices
 - Ticket types
+
+The page uses `VerifiesRecordOwnerContext` (from `commerce-support`,
+guarding its `event` prop): the event is re-verified against the current
+owner scope on every Livewire request, and a mid-session owner change clears
+it instead of rendering stale cross-owner data. See
+[Multi-tenancy](../../commerce-support/docs/14-multi-tenancy.md#livewire-record-components)
+for the shared contract.
 
 ## Owner Safety
 
